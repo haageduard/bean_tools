@@ -19,7 +19,7 @@ void Device::serialReceived()
         } else {
             QList<QByteArray> bytes = rxBytes.split(' ');
             qInfo(rxBytes);
-            if (bytes.at(0).at(0) == 'R') {
+            if (bytes.at(0).at(0) == '>') {
                 BeanFrame frame;
                 frame.setPri((bytes.at(1).toUInt(NULL, 16)) >> 4);
                 frame.setMl((bytes.at(1).toUInt(NULL, 16)) & 0x0F);

@@ -1,3 +1,5 @@
+#include <QDebug>
+
 #include "loggermodel.h"
 
 LoggerModel::LoggerModel(QObject* parent)
@@ -59,6 +61,8 @@ QVariant LoggerModel::data(const QModelIndex &index, int role) const
 
         frame = loggerFrame->getFrame();
 
+//        qDebug() << "update row at" << row << "column";
+
 
         switch (index.column()) {
         case 0:
@@ -92,7 +96,7 @@ QVariant LoggerModel::data(const QModelIndex &index, int role) const
 
 void LoggerModel::putFrame(BeanFrame* frame)
 {
-    BeanFrame f = *frame;
+    BeanFrame f = *frame;    
     LoggerFrame loggerFrame(f);
     loggerFrame.setTime(QDateTime::currentDateTime());
     this->putLoggerFrame(&loggerFrame);
@@ -100,19 +104,29 @@ void LoggerModel::putFrame(BeanFrame* frame)
 
 void LoggerModel::putLoggerFrame(LoggerFrame *loggerFrame)
 {
+
+    BeanFrame f = *loggerFrame->getFrame();
+
+    int dst = f.getDstId();
+    int msg = f.getMsgId();
+
+    dstMsgFrames[dst][msg] = f;
+
+    beginInsertRows(QModelIndex(), frames.size(), frames.size());
     frames.append(*loggerFrame);
     if (isFiltered) {
         filterFrame(&frames.last());
     }
-//    emit layoutChanged();
-    QModelIndex startOfRow = this->index(frames.length()-1, 0);
-    QModelIndex endOfRow   = this->index(frames.length()-1, columnCount());
-    emit QAbstractItemModel::dataChanged(startOfRow, endOfRow);
-    emit QAbstractItemModel::layoutChanged();
+    endInsertRows();
 }
 
 void LoggerModel::clear()
 {
+//    for(auto &dst: dstMsgFrames) {
+//        dst.second.clear();
+//        dstMsgFrames[dst.first].clear();
+//    }
+
     frames.clear();
     framesFiltered.clear();
     emit layoutChanged();
@@ -123,7 +137,7 @@ void LoggerModel::setFilter(int msgId, int dstId)
     framesFiltered.clear();
     filterMsgId = msgId;
     filterDstId = dstId;
-    if (msgId == -1 && dstId == -1) {
+    if (msgId == 0xFF && dstId == 0xFF)  {
         isFiltered = false;
     } else {
         for(int i = 0; i < frames.length(); i++) {
@@ -163,12 +177,17 @@ void LoggerModel::filterFrame(LoggerFrame *loggerFrame)
 
     BeanFrame* frame = loggerFrame->getFrame();
 
-    if ((filterMsgId > -1 && frame->getMsgId() == filterMsgId) && (filterDstId == -1)) {
+    if ((filterMsgId != -1 && frame->getMsgId() == filterMsgId) && ((filterDstId == -1))) {
         framesFiltered.append(loggerFrame);
-    } else if ((filterDstId > -1 && frame->getDstId() == filterDstId) && (filterMsgId == -1)) {
+    } else if ((filterDstId != -1 && frame->getDstId() == filterDstId) && (filterMsgId == -1)) {
         framesFiltered.append(loggerFrame);
-    } else if ((frame->getMsgId() == filterMsgId) &&
-                (frame->getDstId() == filterDstId)) {
+    } else if (((frame->getMsgId() == filterMsgId) &&
+                       (frame->getDstId() == filterDstId)) || (filterMsgId == 0xFF || filterDstId == 0xFF))  {
         framesFiltered.append(loggerFrame);
     }
+}
+
+BeanFrame* LoggerModel::getFrameByDstMsg(int dst, int msg) {
+    BeanFrame *f = &dstMsgFrames[dst][msg];
+    return f;
 }

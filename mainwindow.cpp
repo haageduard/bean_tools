@@ -5,6 +5,7 @@
 #include <QFileDialog>
 #include <QTimer>
 #include <QDateTime>
+#include <QLayout>
 
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
@@ -22,19 +23,19 @@ void MainWindow::deviceSend(BeanFrame* frame) {
         return;
     }
     isSending = true;
-    str = QString("%1,%2,%3,%4,")
+    str = QString("W %1 %2 %3 %4 ")
             .arg(0)
               .arg(frame->getPri())
             .arg(frame->getDstId())
             .arg(frame->getMsgId());
-    str.append(QString("%1,").arg(frame->getMl() - 2));
+    str.append(QString("%1 ").arg(frame->getMl()));
     for(uint8_t i = 0; i < frame->getMl() - 2; i++) {
-        str.append(QString("%1,").arg(frame->getData(i)));
+        str.append(QString("%1 ").arg(frame->getData(i)));
     }
     str.append(char(10));
     device->send(str);
 //    isSending = false;
-    qInfo() << "W " << str;
+    qInfo() << str;
 }
 
 
@@ -142,10 +143,8 @@ void MainWindow::updateByte(uint8_t byte_num) {
             break;
     }
 
-    if (device->isConnected()) {
-        if (isLiveSend) {
-//           deviceSend();
-        }
+    if (canSend && ui->cbToggleBitPickerMode->isChecked()) {
+        on_btnSendBytes_clicked();
     }
 }
 
@@ -197,6 +196,7 @@ void MainWindow::setToggleUIEnabled(bool value)
 
     ui->btnSetBytes->setEnabled(value);
     ui->btnClearBytes->setEnabled(value);
+    ui->cbToggleBitPickerMode->setEnabled(value);
 
     ui->cmByte10->setEnabled(value);
     ui->cmByte11->setEnabled(value);
@@ -330,6 +330,19 @@ void MainWindow::beanFrameReceived(BeanFrame* frame) {
             ui->tblLogger->selectRow(selectedRowNum);
         }
     }
+
+    if (dashboard.metric.length() == 0) {
+        return;
+    }
+
+    QList<DashboardMetric*> affectedMetric = dashboard.putFrame(frame);
+    if (affectedMetric.length() == 0) {
+        return;
+    }
+
+    for (DashboardMetric *m: affectedMetric) {
+        dashboardMetricModel->updateItem(m);
+    }
 }
 
 MainWindow::MainWindow(QWidget *parent) :
@@ -342,6 +355,7 @@ MainWindow::MainWindow(QWidget *parent) :
     loggerStarted = false;
     isSending = false;
     isPlaying = false;
+    canSend = true;
 
 
     device = new Device();
@@ -351,6 +365,7 @@ MainWindow::MainWindow(QWidget *parent) :
     groupModel = new LoggerGroupModel();
     toggleDbFrameModel = new ToggleDbFrameModel();
     playerModel = new PlayerModel();
+    dashboardMetricModel = new DashboardMetricModel();
 
     fillPriority();
     fillDestIds();
@@ -380,6 +395,10 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->tblPlayer->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
     ui->tblPlayer->horizontalHeader()->setHighlightSections(false);
     ui->tblPlayer->setModel(playerModel);
+
+    ui->tblDashboardMetric->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    ui->tblDashboardMetric->horizontalHeader()->setHighlightSections(false);
+    ui->tblDashboardMetric->setModel(dashboardMetricModel);
 
     initBeanFrame();
     updateFrameBytes();
@@ -686,6 +705,8 @@ void MainWindow::on_cmByte60_toggled(bool checked)
 void MainWindow::on_btnClearBytes_clicked()
 {
 
+    canSend = false;
+
     ui->cbByte17->setChecked(false);
     ui->cmByte16->setChecked(false);
     ui->cmByte15->setChecked(false);
@@ -796,6 +817,11 @@ void MainWindow::on_btnClearBytes_clicked()
 
     updateFrameBytes();
 
+    canSend = true;
+    if (ui->cbToggleBitPickerMode->isChecked()) {
+        on_btnSendBytes_clicked();
+    }
+
 }
 
 void MainWindow::serialReceived()
@@ -816,24 +842,23 @@ void MainWindow::timerAlarm()
 void MainWindow::on_cbMessageId_currentIndexChanged(int index)
 {
     updateFrameBytes();
-    if (device->isConnected()) {
-        if (isLiveSend) {
-//            deviceSend();
-        }
+    if (ui->cbToggleBitPickerMode->isChecked()) {
+        on_btnSendBytes_clicked();
     }
 }
 
 void MainWindow::on_cbMessageId_currentTextChanged(const QString &arg1)
 {
-    if (device->isConnected()) {
-        if (isLiveSend) {
-//            deviceSend();
-        }
+    if (ui->cbToggleBitPickerMode->isChecked()) {
+        on_btnSendBytes_clicked();
     }
 }
 
 void MainWindow::on_btnSetBytes_clicked()
 {
+
+    canSend = false;
+
     ui->cbByte17->setChecked(true);
     ui->cmByte16->setChecked(true);
     ui->cmByte15->setChecked(true);
@@ -943,10 +968,16 @@ void MainWindow::on_btnSetBytes_clicked()
     ui->cbByte110->setChecked(true);
 
     updateFrameBytes();
+
+    canSend = true;
+    if (ui->cbToggleBitPickerMode->isChecked()) {
+        on_btnSendBytes_clicked();
+    }
 }
 
 void MainWindow::on_btnSetBits1_clicked()
 {
+    canSend = false;
     ui->cbByte17->setChecked(true);
     ui->cmByte16->setChecked(true);
     ui->cmByte15->setChecked(true);
@@ -955,10 +986,16 @@ void MainWindow::on_btnSetBits1_clicked()
     ui->cmByte12->setChecked(true);
     ui->cmByte11->setChecked(true);
     ui->cmByte10->setChecked(true);
+    canSend = true;
+    if (ui->cbToggleBitPickerMode->isChecked()) {
+        on_btnSendBytes_clicked();
+    }
+
 }
 
 void MainWindow::on_btnSetBits2_clicked()
 {
+    canSend = false;
     ui->cbByte27->setChecked(true);
     ui->cmByte26->setChecked(true);
     ui->cmByte25->setChecked(true);
@@ -967,10 +1004,15 @@ void MainWindow::on_btnSetBits2_clicked()
     ui->cmByte22->setChecked(true);
     ui->cmByte21->setChecked(true);
     ui->cmByte20->setChecked(true);
+    canSend = true;
+    if (ui->cbToggleBitPickerMode->isChecked()) {
+        on_btnSendBytes_clicked();
+    }
 }
 
 void MainWindow::on_btnSetBits3_clicked()
 {
+    canSend = false;
     ui->cbByte37->setChecked(true);
     ui->cmByte36->setChecked(true);
     ui->cmByte35->setChecked(true);
@@ -979,11 +1021,16 @@ void MainWindow::on_btnSetBits3_clicked()
     ui->cmByte32->setChecked(true);
     ui->cmByte31->setChecked(true);
     ui->cmByte30->setChecked(true);
+    canSend = true;
+    if (ui->cbToggleBitPickerMode->isChecked()) {
+        on_btnSendBytes_clicked();
+    }
 
 }
 
 void MainWindow::on_btnSetBits4_clicked()
 {
+    canSend = false;
     ui->cbByte47->setChecked(true);
     ui->cmByte46->setChecked(true);
     ui->cmByte45->setChecked(true);
@@ -992,10 +1039,15 @@ void MainWindow::on_btnSetBits4_clicked()
     ui->cmByte42->setChecked(true);
     ui->cmByte41->setChecked(true);
     ui->cmByte40->setChecked(true);
+    canSend = true;
+    if (ui->cbToggleBitPickerMode->isChecked()) {
+        on_btnSendBytes_clicked();
+    }
 }
 
 void MainWindow::on_btnSetBits5_clicked()
 {
+    canSend =false;
     ui->cbByte57->setChecked(true);
     ui->cmByte56->setChecked(true);
     ui->cmByte55->setChecked(true);
@@ -1004,10 +1056,15 @@ void MainWindow::on_btnSetBits5_clicked()
     ui->cmByte52->setChecked(true);
     ui->cmByte51->setChecked(true);
     ui->cmByte50->setChecked(true);
+    canSend = true;
+    if (ui->cbToggleBitPickerMode->isChecked()) {
+        on_btnSendBytes_clicked();
+    }
 }
 
 void MainWindow::on_btnSetBits6_clicked()
 {
+    canSend = false;
     ui->cbByte67->setChecked(true);
     ui->cmByte66->setChecked(true);
     ui->cmByte65->setChecked(true);
@@ -1016,10 +1073,15 @@ void MainWindow::on_btnSetBits6_clicked()
     ui->cmByte62->setChecked(true);
     ui->cmByte61->setChecked(true);
     ui->cmByte60->setChecked(true);
+    canSend = true;
+    if (ui->cbToggleBitPickerMode->isChecked()) {
+        on_btnSendBytes_clicked();
+    }
 }
 
 void MainWindow::on_btnClearBits1_clicked()
 {
+    canSend = false;
     ui->cbByte17->setChecked(false);
     ui->cmByte16->setChecked(false);
     ui->cmByte15->setChecked(false);
@@ -1028,10 +1090,15 @@ void MainWindow::on_btnClearBits1_clicked()
     ui->cmByte12->setChecked(false);
     ui->cmByte11->setChecked(false);
     ui->cmByte10->setChecked(false);
+    canSend = true;
+    if (ui->cbToggleBitPickerMode->isChecked()) {
+        on_btnSendBytes_clicked();
+    }
 }
 
 void MainWindow::on_btnClearBits2_clicked()
 {
+    canSend = false;
     ui->cbByte27->setChecked(false);
     ui->cmByte26->setChecked(false);
     ui->cmByte25->setChecked(false);
@@ -1040,10 +1107,15 @@ void MainWindow::on_btnClearBits2_clicked()
     ui->cmByte22->setChecked(false);
     ui->cmByte21->setChecked(false);
     ui->cmByte20->setChecked(false);
+    canSend = true;
+    if (ui->cbToggleBitPickerMode->isChecked()) {
+        on_btnSendBytes_clicked();
+    }
 }
 
 void MainWindow::on_btnClearBits3_clicked()
 {
+    canSend = false;
     ui->cbByte37->setChecked(false);
     ui->cmByte36->setChecked(false);
     ui->cmByte35->setChecked(false);
@@ -1052,10 +1124,15 @@ void MainWindow::on_btnClearBits3_clicked()
     ui->cmByte32->setChecked(false);
     ui->cmByte31->setChecked(false);
     ui->cmByte30->setChecked(false);
+    canSend = true;
+    if (ui->cbToggleBitPickerMode->isChecked()) {
+        on_btnSendBytes_clicked();
+    }
 }
 
 void MainWindow::on_btnClearBits4_clicked()
 {
+    canSend = false;
     ui->cbByte47->setChecked(false);
     ui->cmByte46->setChecked(false);
     ui->cmByte45->setChecked(false);
@@ -1064,10 +1141,15 @@ void MainWindow::on_btnClearBits4_clicked()
     ui->cmByte42->setChecked(false);
     ui->cmByte41->setChecked(false);
     ui->cmByte40->setChecked(false);
+    canSend = true;
+    if (ui->cbToggleBitPickerMode->isChecked()) {
+        on_btnSendBytes_clicked();
+    }
 }
 
 void MainWindow::on_btnClearBits5_clicked()
 {
+    canSend = false;
     ui->cbByte57->setChecked(false);
     ui->cmByte56->setChecked(false);
     ui->cmByte55->setChecked(false);
@@ -1076,10 +1158,15 @@ void MainWindow::on_btnClearBits5_clicked()
     ui->cmByte52->setChecked(false);
     ui->cmByte51->setChecked(false);
     ui->cmByte50->setChecked(false);
+    canSend = true;
+    if (ui->cbToggleBitPickerMode->isChecked()) {
+        on_btnSendBytes_clicked();
+    }
 }
 
 void MainWindow::on_btnClearBits6_clicked()
 {
+    canSend = false;
     ui->cbByte67->setChecked(false);
     ui->cmByte66->setChecked(false);
     ui->cmByte65->setChecked(false);
@@ -1088,23 +1175,23 @@ void MainWindow::on_btnClearBits6_clicked()
     ui->cmByte62->setChecked(false);
     ui->cmByte61->setChecked(false);
     ui->cmByte60->setChecked(false);
+    canSend = true;
+    if (ui->cbToggleBitPickerMode->isChecked()) {
+        on_btnSendBytes_clicked();
+    }
 }
 
 void MainWindow::on_cbDestId_currentTextChanged(const QString &arg1)
 {
-    if (device->isConnected()) {
-        if (isLiveSend) {
-//            deviceSend();
-        }
+    if (ui->cbToggleBitPickerMode->isChecked()) {
+        on_btnSendBytes_clicked();
     }
 }
 
 void MainWindow::on_cbPriority_currentTextChanged(const QString &arg1)
 {
-    if (device->isConnected()) {
-        if (isLiveSend) {
-//            deviceSend();
-        }
+    if (ui->cbToggleBitPickerMode->isChecked()) {
+        on_btnSendBytes_clicked();
     }
 }
 
@@ -1368,6 +1455,7 @@ void MainWindow::on_cbByte110_toggled(bool checked)
 
 void MainWindow::on_btnSetBits7_clicked()
 {
+    canSend = false;
     ui->cbByte77->setChecked(true);
     ui->cbByte76->setChecked(true);
     ui->cbByte75->setChecked(true);
@@ -1376,10 +1464,15 @@ void MainWindow::on_btnSetBits7_clicked()
     ui->cbByte72->setChecked(true);
     ui->cbByte71->setChecked(true);
     ui->cbByte70->setChecked(true);
+    canSend = true;
+    if (ui->cbToggleBitPickerMode->isChecked()) {
+        on_btnSendBytes_clicked();
+    }
 }
 
 void MainWindow::on_btnSetBits8_clicked()
 {
+    canSend = false;
     ui->cbByte87->setChecked(true);
     ui->cbByte86->setChecked(true);
     ui->cbByte85->setChecked(true);
@@ -1388,10 +1481,15 @@ void MainWindow::on_btnSetBits8_clicked()
     ui->cbByte82->setChecked(true);
     ui->cbByte81->setChecked(true);
     ui->cbByte80->setChecked(true);
+    canSend = true;
+    if (ui->cbToggleBitPickerMode->isChecked()) {
+        on_btnSendBytes_clicked();
+    }
 }
 
 void MainWindow::on_btnSetBits9_clicked()
 {
+    canSend = false;
     ui->cbByte97->setChecked(true);
     ui->cbByte96->setChecked(true);
     ui->cbByte95->setChecked(true);
@@ -1400,10 +1498,15 @@ void MainWindow::on_btnSetBits9_clicked()
     ui->cbByte92->setChecked(true);
     ui->cbByte91->setChecked(true);
     ui->cbByte90->setChecked(true);
+    canSend = true;
+    if (ui->cbToggleBitPickerMode->isChecked()) {
+        on_btnSendBytes_clicked();
+    }
 }
 
 void MainWindow::on_btnSetBits10_clicked()
 {
+    canSend = false;
     ui->cbByte107->setChecked(true);
     ui->cbByte106->setChecked(true);
     ui->cbByte105->setChecked(true);
@@ -1412,10 +1515,15 @@ void MainWindow::on_btnSetBits10_clicked()
     ui->cbByte102->setChecked(true);
     ui->cbByte101->setChecked(true);
     ui->cbByte100->setChecked(true);
+    canSend = true;
+    if (ui->cbToggleBitPickerMode->isChecked()) {
+        on_btnSendBytes_clicked();
+    }
 }
 
 void MainWindow::on_btnSetBits11_clicked()
 {
+    canSend = false;
     ui->cbByte117->setChecked(true);
     ui->cbByte116->setChecked(true);
     ui->cbByte115->setChecked(true);
@@ -1424,10 +1532,15 @@ void MainWindow::on_btnSetBits11_clicked()
     ui->cbByte112->setChecked(true);
     ui->cbByte111->setChecked(true);
     ui->cbByte110->setChecked(true);
+    canSend = true;
+    if (ui->cbToggleBitPickerMode->isChecked()) {
+        on_btnSendBytes_clicked();
+    }
 }
 
 void MainWindow::on_btnClearBits7_clicked()
 {
+    canSend = false;
     ui->cbByte77->setChecked(false);
     ui->cbByte76->setChecked(false);
     ui->cbByte75->setChecked(false);
@@ -1436,10 +1549,15 @@ void MainWindow::on_btnClearBits7_clicked()
     ui->cbByte72->setChecked(false);
     ui->cbByte71->setChecked(false);
     ui->cbByte70->setChecked(false);
+    canSend = true;
+    if (ui->cbToggleBitPickerMode->isChecked()) {
+        on_btnSendBytes_clicked();
+    }
 }
 
 void MainWindow::on_btnClearBits8_clicked()
 {
+    canSend = false;
     ui->cbByte87->setChecked(false);
     ui->cbByte86->setChecked(false);
     ui->cbByte85->setChecked(false);
@@ -1448,10 +1566,15 @@ void MainWindow::on_btnClearBits8_clicked()
     ui->cbByte82->setChecked(false);
     ui->cbByte81->setChecked(false);
     ui->cbByte80->setChecked(false);
+    canSend = true;
+    if (ui->cbToggleBitPickerMode->isChecked()) {
+        on_btnSendBytes_clicked();
+    }
 }
 
 void MainWindow::on_btnClearBits9_clicked()
 {
+    canSend = false;
     ui->cbByte97->setChecked(false);
     ui->cbByte96->setChecked(false);
     ui->cbByte95->setChecked(false);
@@ -1460,10 +1583,15 @@ void MainWindow::on_btnClearBits9_clicked()
     ui->cbByte92->setChecked(false);
     ui->cbByte91->setChecked(false);
     ui->cbByte90->setChecked(false);
+    canSend = true;
+    if (ui->cbToggleBitPickerMode->isChecked()) {
+        on_btnSendBytes_clicked();
+    }
 }
 
 void MainWindow::on_btnClearBits10_clicked()
 {
+    canSend = false;
     ui->cbByte107->setChecked(false);
     ui->cbByte106->setChecked(false);
     ui->cbByte105->setChecked(false);
@@ -1472,10 +1600,15 @@ void MainWindow::on_btnClearBits10_clicked()
     ui->cbByte102->setChecked(false);
     ui->cbByte101->setChecked(false);
     ui->cbByte100->setChecked(false);
+    canSend = true;
+    if (ui->cbToggleBitPickerMode->isChecked()) {
+        on_btnSendBytes_clicked();
+    }
 }
 
 void MainWindow::on_btnClearBits11_clicked()
 {
+    canSend = false;
     ui->cbByte117->setChecked(false);
     ui->cbByte116->setChecked(false);
     ui->cbByte115->setChecked(false);
@@ -1484,11 +1617,18 @@ void MainWindow::on_btnClearBits11_clicked()
     ui->cbByte112->setChecked(false);
     ui->cbByte111->setChecked(false);
     ui->cbByte110->setChecked(false);
+    canSend = true;
+    if (ui->cbToggleBitPickerMode->isChecked()) {
+        on_btnSendBytes_clicked();
+    }
 }
 
 void MainWindow::on_sbBytesCount_valueChanged(int arg1)
 {
     updateFrameBytes();
+    if (ui->cbToggleBitPickerMode->isChecked()) {
+        on_btnSendBytes_clicked();
+    }
 }
 
 void MainWindow::on_cbPriority_currentIndexChanged(int index)
@@ -1645,6 +1785,8 @@ void MainWindow::on_actionNewDatabase_triggered()
 
 void MainWindow::loadDbFrame()
 {
+
+    canSend = false;
 
     ui->cbMessageId->blockSignals(true);
     ui->cbDestId->blockSignals(true);
@@ -1960,6 +2102,8 @@ void MainWindow::loadDbFrame()
     ui->cbDestId->blockSignals(false);
     ui->cbPriority->blockSignals(false);
     ui->sbBytesCount->blockSignals(false);
+
+    canSend = true;
 }
 
 void MainWindow::on_tbToggleDbFrame_clicked(const QModelIndex &index)
@@ -2266,5 +2410,138 @@ void MainWindow::on_cbByte17_stateChanged(int arg1)
 
 void MainWindow::on_cbByte17_clicked()
 {
+
+}
+
+void MainWindow::on_cbToggleBitPickerMode_toggled(bool checked)
+{
+
+}
+
+void MainWindow::on_btnPlayerClear_clicked()
+{
+    playerModel->clear();
+}
+
+void MainWindow::on_btnOpenDashboard_clicked()
+{
+    QString fileName = QFileDialog::getOpenFileName(this,
+                                                    tr("Open dashboard"), "",
+                                                    tr("Dashboard(*.json);;All Files (*)"));
+    if (fileName.isEmpty()) {
+        return;
+    }
+
+    dashboardMetricModel->clear();
+
+    if (!dashboard.readFromFile(fileName)) {
+        QMessageBox::information(this, tr("File error"), "Unable to open file");
+        return;
+    }
+
+    for (DashboardMetric &m: dashboard.metric) {
+        dashboardMetricModel->putItem(&m);
+    }
+
+    if (ui->gbActions->layout() != NULL) {
+        delete ui->gbActions->layout();
+    }
+
+    QObject::connect(timeoutTimer, &QTimer::timeout, this, &MainWindow::onTimeout);
+    QObject::connect(device, &Device::beanFrameTransmitted, this, &MainWindow::beanFrameTransmitted);
+    QObject::connect(device, &Device::beanFrameTransmitError, this, &MainWindow::beanFrameTransmitError);
+
+    QVBoxLayout *layout = new QVBoxLayout(window());
+
+    for (DashboardAction &a: dashboard.action) {
+        if (!a.enabled) {
+            continue;
+        }
+        QPushButton *btn = new QPushButton(a.name);
+        QObject::connect(btn, &QPushButton::clicked, [this, &a]() {
+            qInfo() << a.name << "pressed";
+            if (!device->isConnected()) {
+                QMessageBox::warning(this, "Action error", "Device is not connected");
+                return;
+            }
+            if (isSending) {
+                return;
+            }
+            for (auto &msg: a.message) {
+                BeanFrame frame;
+                // get last frame from logger by dst/msg
+                BeanFrame *logFrame = model->getFrameByDstMsg(msg.dstId, msg.msgId);
+                if (logFrame != NULL) {
+                    qDebug() << "log frame found (" << "dst=" << logFrame->getDstId() << "msg=" << logFrame->getMsgId() << "len=" << logFrame->getMl() << ")";
+                }
+                if (msg.priority > 0) {
+                    frame.setPri(msg.priority);
+                }
+                frame.setDstId(msg.dstId);
+                frame.setMsgId(msg.msgId);
+                frame.setMl(msg.data.size() + 2);
+                for(int i = 0; i < msg.data.size(); i++) {
+                    bool ok = true;
+                    int byte = 0;
+                    int opByte = 0;
+                    int op = 0; // 1 - set 2 - reset, 3 - toggle
+                    QString byteStr = msg.data[i].trimmed();
+                    if (byteStr.startsWith("set")) {
+                        byteStr = byteStr.remove("set");
+                        op = 1;
+                    } else if (byteStr.startsWith("reset")) {
+                        byteStr = byteStr.remove("reset");
+                        op = 2;
+                    } else if (byteStr.startsWith("toggle")) {
+                        byteStr = byteStr.remove("toggle");
+                        op = 3;
+                    }
+                    if (op > 0) {
+                        byteStr = byteStr.trimmed();
+                    }
+
+                    if (byteStr.startsWith("0x")) {
+                        opByte = byteStr.toInt(&ok, 16);
+                    } else if (byteStr == "") {
+                        opByte = -1;
+                    } else {
+                        opByte = byteStr.toInt(&ok, 10);
+                    }
+
+                    if (!ok) {
+                        QMessageBox::warning(this, "Action error", "Invalid data byte");
+                        return;
+                    }
+
+                    byte = 0;
+                    if (op > 0 || opByte == -1) {
+
+                        if (logFrame != NULL && i < logFrame->getMl() - 2) {
+                            byte = logFrame->getData(i);
+                        }
+                        if (op == 1) {
+                            byte = byte | opByte;
+                        } else if (op == 2) {
+                            byte = byte & ~opByte;
+                        } else if (op == 3) {
+                            if ((byte & opByte) > 0) {
+                                byte = byte & ~opByte;
+                            } else {
+                                byte = byte | opByte;
+                            }
+                        }
+                    } else {
+                        byte = opByte;
+                    }
+
+                    frame.setData(i, byte);
+                }
+                deviceSend(&frame);
+            }
+        });
+        layout->addWidget(btn);
+    }
+
+    ui->gbActions->setLayout(layout);
 
 }

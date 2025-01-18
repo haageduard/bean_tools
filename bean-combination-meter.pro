@@ -4,7 +4,7 @@
 #
 #-------------------------------------------------
 
-QT       += core gui serialport
+QT       += core gui serialport qml
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -27,6 +27,8 @@ CONFIG += c++11
 SOURCES += \
         beanframe.cpp \
         beanframegroup.cpp \
+        dashboard.cpp \
+        dashboardmetricmodel.cpp \
         device.cpp \
         deviceconnectdialog.cpp \
         loggercapturesetup.cpp \
@@ -43,6 +45,8 @@ SOURCES += \
 HEADERS += \
     beanframe.h \
     beanframegroup.h \
+    dashboard.h \
+    dashboardmetricmodel.h \
     device.h \
     deviceconnectdialog.h \
     loggercapturesetup.h \

@@ -21,13 +21,15 @@ public:
     void setFilter(int msgId, int dstId);
     BeanFrame* getFrame(int rowNum);
     LoggerFrame* getLoggerFrame(int rowNum);
+    BeanFrame* getFrameByDstMsg(int dst, int msg);
 private:
     bool isFiltered;
     int filterMsgId;
     int filterDstId;
     QList<LoggerFrame> frames;
     QList<LoggerFrame*> framesFiltered;
-    void filterFrame(LoggerFrame* frame);
+    std::map<int, std::map<int, BeanFrame>> dstMsgFrames;
+    void filterFrame(LoggerFrame* frame);    
 };
 
 #endif // LOGGERMODEL_H

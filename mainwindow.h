@@ -8,6 +8,8 @@
 #include "loggergroupmodel.h"
 #include "toggledbframemodel.h"
 #include "playermodel.h"
+#include "dashboardmetricmodel.h"
+#include "dashboard.h"
 
 namespace Ui {
 class MainWindow;
@@ -253,6 +255,12 @@ private slots:
 
     void on_cbByte17_clicked();
 
+    void on_cbToggleBitPickerMode_toggled(bool checked);
+
+    void on_btnPlayerClear_clicked();
+
+    void on_btnOpenDashboard_clicked();        
+
 private:
     Ui::MainWindow *ui;
     Device* device;
@@ -262,7 +270,9 @@ private:
     LoggerGroupModel* groupModel;
     ToggleDbFrameModel* toggleDbFrameModel;
     PlayerModel* playerModel;
+    DashboardMetricModel *dashboardMetricModel;
     BeanFrame beanFrame;
+    Dashboard dashboard;
 
     bool isBeanFrameTransmitError;
     bool isBeanFrameTransmitAck;
@@ -271,7 +281,7 @@ private:
     int selectedRowNum;
     bool loggerStarted;
     bool isSending;
-    bool isLiveSend;
+    bool canSend;
     void deviceSend(BeanFrame* beanFrame);
     void fillPriority();
     void fillDestIds();
@@ -295,6 +305,7 @@ private:
 
     void LogFilterApply();
     void setToggleUIEnabled(bool value);
+
 };
 
 #endif // MAINWINDOW_H
