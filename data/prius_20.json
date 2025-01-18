@@ -1,0 +1,205 @@
+{
+  "name": "Toyota Prius MHW 20 JP",
+  "version": 1,
+  "action": [
+    {
+      "name": "Индикация \"Габариты вкл\"",
+      "icon": "./img/close_door.png",
+      "enabled": true,
+      "message": [
+        {
+          "prio": 3,
+          "dst_id": "0xFE",
+          "msg_id": "0x7F",
+          "data": [
+            "set 0x10",
+            -1,
+            -1,
+            -1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Индикация \"Дальний вкл\"",
+      "icon": "./img/close_door.png",
+      "enabled": true,
+      "message": [
+        {
+          "prio": 3,
+          "dst_id": "0xFE",
+          "msg_id": "0x7F",
+          "data": [
+            "set 0x08",
+            -1,
+            -1,
+            -1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Индикация \"Габариты выкл\"",
+      "icon": "./img/close_door.png",
+      "enabled": true,
+      "message": [
+        {
+          "prio": 3,
+          "dst_id": "0xFE",
+          "msg_id": "0x7F",
+          "data": [
+            "reset 0x10",
+            -1,
+            -1,
+            -1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Индикация \"Дальний выкл\"",
+      "icon": "./img/close_door.png",
+      "enabled": true,
+      "message": [
+        {
+          "prio": 3,
+          "dst_id": "0xFE",
+          "msg_id": "0x7F",
+          "data": [
+            "reset 0x08",
+            -1,
+            -1,
+            -1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Индикация \"Двери откр\"",
+      "icon": "./img/open_door.png",
+      "enabled": true,
+      "message": [
+        {
+          "dst_id": "0xFE",
+          "msg_id": "0x7F",
+          "data": [
+            -1,
+            -1,
+            "set 0x80",
+            -1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Индикация \"Двери закр\"",
+      "icon": "./img/open_door.png",
+      "enabled": true,
+      "message": [
+        {
+          "dst_id": "0xFE",
+          "msg_id": "0x7F",
+          "data": [
+            -1,
+            -1,
+            "reset 0x80",
+            -1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Ииндикация \"Двери\"",
+      "icon": "./img/open_door.png",
+      "enabled": true,
+      "message": [
+        {
+          "dst_id": "0xFE",
+          "msg_id": "0x7F",
+          "data": [
+            -1,
+            -1,
+            "toggle 0x80",
+            -1
+          ]
+        }
+      ]
+    }
+  ],
+  "metric": [
+    {
+      "name": "Пробег",
+      "enabled": true,
+      "dst_id": "0x52",
+      "msg_id": "0x3F",
+      "expr": "(($0 & 0xFF) << 16) + ($1 << 8) + $2",
+      "output": "$value км"
+    },
+    {
+      "name": "Габариты",
+      "enabled": true,
+      "dst_id": "0xFE",
+      "msg_id": "0x7F",
+      "expr": "$0 & 0x10",
+      "match_value": {
+        "0x10": "Да",
+        "0x00": "Нет"
+      },
+      "output": "$value"
+    },
+    {
+      "name": "Дальний свет",
+      "enabled": true,
+      "dst_id": "0xFE",
+      "msg_id": "0x7F",
+      "expr": "$0 & 0x08",
+      "match_value": {
+        "0x08": "Да",
+        "0x00": "Нет"
+      },
+      "output": "$value"
+    },
+    {
+      "name": "Передняя дверь",
+      "enabled": true,
+      "dst_id": "0xFE",
+      "msg_id": "0x7F",
+      "expr": "$2 & 0x80",
+      "match_value": {
+        "0x80": "Открыто",
+        "0x00": "Закрыто"
+      },
+      "output": "$value"
+    },
+    {
+      "name": "Температура двигателя",
+      "enabled": true,
+      "dst_id": "0xFE",
+      "msg_id": "0x2C",
+      "expr": "$0 / 2",
+      "output": "$value C"
+    },
+    {
+      "name": "Обороты двигателя",
+      "enabled": true,
+      "dst_id": "0xFE",
+      "msg_id": "0x26",
+      "expr": "(($2 << 8) + $3) / 5.12",
+      "output": "$value RPM"
+    },
+    {
+      "name": "Положение селектора",
+      "enabled": true,
+      "dst_id": "0xFE",
+      "msg_id": "0x40",
+      "expr": "$0",
+      "match_value": {
+        "0x80": "P",
+        "0x40": "R",
+        "0x20": "N",
+        "0x10": "D"
+      },
+      "output": "$value"
+    }
+  ]
+}
